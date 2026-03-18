@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/l10n/app_localizations.dart';
 import '../../providers/lots_provider.dart';
+import '../widgets/connectivity_banner.dart';
 import '../widgets/lot_card.dart';
 
 class LotsCatalogScreen extends StatefulWidget {
@@ -70,6 +71,7 @@ class _LotsCatalogScreenState extends State<LotsCatalogScreen> {
 
       body: Column(
         children: [
+          const ConnectivityBanner(),
           _buildFilters(context, l10n),
 
           Expanded(
@@ -87,7 +89,8 @@ class _LotsCatalogScreenState extends State<LotsCatalogScreen> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    await provider.reloadMockData();
+                    // Теперь тянем данные с твоего Go-сервера
+                    await provider.refreshData();
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -96,7 +99,7 @@ class _LotsCatalogScreenState extends State<LotsCatalogScreen> {
                       final lot = lots[index];
 
                       return Slidable(
-                        key: Key(lot.id),
+                        key: ValueKey(lot.id.isEmpty ? 'index_$index' : lot.id),
 
                         endActionPane: ActionPane(
                           motion: const BehindMotion(),

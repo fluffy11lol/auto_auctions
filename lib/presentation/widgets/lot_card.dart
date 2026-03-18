@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/models/lot_model.dart';
+
 import '../../core/l10n/app_localizations.dart';
+import '../../data/models/lot_model.dart';
 
 class LotCard extends StatelessWidget {
   final LotModel lot;
@@ -157,7 +158,11 @@ class LotCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.speed, size: 16, color: Colors.grey),
+                              const Icon(
+                                Icons.speed,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${_formatNumber(lot.mileage!.toDouble())} ${l10n.t('miles')}',
@@ -207,7 +212,10 @@ class LotCard extends StatelessWidget {
               const SizedBox(height: 12),
 
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -265,9 +273,11 @@ class LotCard extends StatelessWidget {
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
-    );
+        );
   }
 }

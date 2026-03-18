@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../data/models/lot_model.dart';
 import '../data/repositories/lots_repository.dart';
-import '../data/mock/mock_lots.dart';
+import '../core/api_config.dart';
 
 class LotsProvider extends ChangeNotifier {
   final LotsRepository _repository;
+  final Dio _dio = Dio();
   final _uuid = const Uuid();
 
   List<LotModel> _lots = [];
@@ -15,6 +18,13 @@ class LotsProvider extends ChangeNotifier {
 
   LotsProvider(this._repository) {
     _loadLots();
+
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      if (result != ConnectivityResult.none) {
+        debugPrint('LotsProvider: Internet restored, syncing with server...');
+        _syncWithServer();
+      }
+    });
   }
 
   List<LotModel> get lots {
@@ -34,7 +44,6 @@ class LotsProvider extends ChangeNotifier {
     }
 
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
     return result;
   }
 
@@ -49,21 +58,61 @@ class LotsProvider extends ChangeNotifier {
     notifyListeners();
 
     _lots = _repository.getAll();
+    notifyListeners();
 
-    if (_lots.isEmpty) {
-      await _addMockData();
-    }
+    await _syncWithServer();
 
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> _addMockData() async {
-    final mockLots = MockLots.generate();
-    for (final lot in mockLots) {
-      await _repository.add(lot);
+  Future<void> _syncWithServer() async {
+    try {
+      final response = await _dio.get('${ApiConfig.baseUrl}/lots').timeout(
+        const Duration(seconds: 4),
+      );
+
+      if (response.statusCode == 200) {
+        final List data = response.data;
+
+        final List<LotModel> remoteLots = data.map((json) {
+          final localVersion = getLotById(json['id']);
+
+          return LotModel(
+            id: json['id'],
+            lotNumber: json['lotNumber'] ?? '',
+            auction: json['auction'] ?? 'Unknown',
+            url: json['url'],
+            make: json['make'] ?? '',
+            model: json['model'] ?? '',
+            year: json['year'] ?? 0,
+            vin: json['vin'],
+            currentBid: (json['currentBid'] as num).toDouble(),
+            state: json['state'] ?? '',
+            city: json['city'] ?? '',
+            primaryDamage: json['primaryDamage'] ?? 'None',
+            runsDrives: json['runsDrives'] ?? true,
+            hasKeys: json['hasKeys'] ?? true,
+            titleType: json['titleType'] ?? 'Unknown',
+            photos: List<String>.from(json['photos'] ?? []),
+            notes: json['notes'],
+            isFavorite: localVersion?.isFavorite ?? false,
+            createdAt: localVersion?.createdAt ?? DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        }).toList();
+
+        await _repository.deleteAll();
+        for (var lot in remoteLots) {
+          await _repository.add(lot);
+        }
+
+        _lots = _repository.getAll();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Sync failed (offline or server down): $e');
     }
-    _lots = _repository.getAll();
   }
 
   LotModel? getLotById(String id) {
@@ -73,6 +122,7 @@ class LotsProvider extends ChangeNotifier {
       return null;
     }
   }
+
 
   Future<void> addLot(LotModel lot) async {
     final newLot = lot.copyWith(
@@ -108,6 +158,7 @@ class LotsProvider extends ChangeNotifier {
     }
   }
 
+
   void setShowFavoritesOnly(bool value) {
     _showFavoritesOnly = value;
     notifyListeners();
@@ -124,9 +175,16 @@ class LotsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshData() async {
+    await _syncWithServer();
+  }
+
   Future<void> reloadMockData() async {
+    _isLoading = true;
+    notifyListeners();
     await _repository.deleteAll();
-    await _addMockData();
+    await _syncWithServer();
+    _isLoading = false;
     notifyListeners();
   }
 }

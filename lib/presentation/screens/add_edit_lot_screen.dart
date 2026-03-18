@@ -416,7 +416,6 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
     );
   }
 
-
   Widget _buildSectionTitle(String title) {
     return Text(
       title,

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/constants/auction_data.dart';
+import '../../core/l10n/app_localizations.dart';
+import '../../data/models/lot_model.dart';
 import '../../providers/lots_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../data/models/lot_model.dart';
 
 class CalculatorScreen extends StatefulWidget {
   final String lotId;
@@ -67,9 +67,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final profitPercent = _marketPrice > 0 ? (profit / totalRub) * 100 : 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.t('cost_calculator')),
-      ),
+      appBar: AppBar(title: Text(l10n.t('cost_calculator'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -208,10 +206,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 children: [
                   Text(
                     l10n.t('total_cost'),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -224,10 +219,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   ),
                   Text(
                     '≈ \$${_formatNumber(totalRub / usdRate)}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 ],
               ),
@@ -274,7 +266,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  Widget _buildCarHeader(BuildContext context, LotModel lot, AppLocalizations l10n) {
+  Widget _buildCarHeader(
+    BuildContext context,
+    LotModel lot,
+    AppLocalizations l10n,
+  ) {
     final theme = Theme.of(context);
 
     return Container(
@@ -324,12 +320,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildSection(
-      BuildContext context, {
-        required String title,
-        required IconData icon,
-        required Color color,
-        required List<Widget> children,
-      }) {
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+  }) {
     final theme = Theme.of(context);
 
     return Container(
@@ -425,10 +421,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(
             value,
             style: TextStyle(
@@ -476,9 +469,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
-    );
+        );
   }
 }

@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/app_localizations.dart';
-import '../../providers/lots_provider.dart';
 import '../../data/models/lot_model.dart';
+import '../../providers/lots_provider.dart';
 
 class LotDetailsScreen extends StatelessWidget {
   final String lotId;
@@ -88,9 +88,15 @@ class LotDetailsScreen extends StatelessWidget {
                           if (lot.engine != null)
                             _buildInfoRow(l10n.t('engine'), lot.engine!),
                           if (lot.transmission != null)
-                            _buildInfoRow(l10n.t('transmission'), lot.transmission!),
+                            _buildInfoRow(
+                              l10n.t('transmission'),
+                              lot.transmission!,
+                            ),
                           if (lot.drivetrain != null)
-                            _buildInfoRow(l10n.t('drivetrain'), lot.drivetrain!),
+                            _buildInfoRow(
+                              l10n.t('drivetrain'),
+                              lot.drivetrain!,
+                            ),
                           if (lot.fuelType != null)
                             _buildInfoRow(l10n.t('fuel_type'), lot.fuelType!),
                           if (lot.exteriorColor != null)
@@ -138,9 +144,15 @@ class LotDetailsScreen extends StatelessWidget {
                         icon: Icons.warning_amber,
                         iconColor: Colors.orange,
                         children: [
-                          _buildInfoRow(l10n.t('primary_damage'), lot.primaryDamage),
+                          _buildInfoRow(
+                            l10n.t('primary_damage'),
+                            lot.primaryDamage,
+                          ),
                           if (lot.secondaryDamage != null)
-                            _buildInfoRow(l10n.t('secondary_damage'), lot.secondaryDamage!),
+                            _buildInfoRow(
+                              l10n.t('secondary_damage'),
+                              lot.secondaryDamage!,
+                            ),
                           _buildInfoRow(
                             l10n.t('has_keys'),
                             lot.hasKeys ? '✓ Yes' : '✗ No',
@@ -166,10 +178,7 @@ class LotDetailsScreen extends StatelessWidget {
                           title: 'Notes',
                           icon: Icons.note,
                           children: [
-                            Text(
-                              lot.notes!,
-                              style: theme.textTheme.bodyMedium,
-                            ),
+                            Text(lot.notes!, style: theme.textTheme.bodyMedium),
                           ],
                         ),
                       ],
@@ -197,15 +206,15 @@ class LotDetailsScreen extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: lot.photos.isNotEmpty
           ? PageView.builder(
-        itemCount: lot.photos.length,
-        itemBuilder: (context, index) {
-          return Image.network(
-            lot.photos[index],
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(context),
-          );
-        },
-      )
+              itemCount: lot.photos.length,
+              itemBuilder: (context, index) {
+                return Image.network(
+                  lot.photos[index],
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(context),
+                );
+              },
+            )
           : _buildPhotoPlaceholder(context),
     );
   }
@@ -251,9 +260,7 @@ class LotDetailsScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Lot #${lot.lotNumber} • ${lot.auction}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
               ),
             ],
           ),
@@ -279,12 +286,12 @@ class LotDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildSection(
-      BuildContext context, {
-        required String title,
-        required IconData icon,
-        Color? iconColor,
-        required List<Widget> children,
-      }) {
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    Color? iconColor,
+    required List<Widget> children,
+  }) {
     final theme = Theme.of(context);
 
     return Container(
@@ -306,7 +313,11 @@ class LotDetailsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: iconColor ?? theme.colorScheme.primary),
+              Icon(
+                icon,
+                size: 20,
+                color: iconColor ?? theme.colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -324,12 +335,12 @@ class LotDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildInfoRow(
-      String label,
-      String value, {
-        TextStyle? valueStyle,
-        VoidCallback? onTap,
-        Widget? trailing,
-      }) {
+    String label,
+    String value, {
+    TextStyle? valueStyle,
+    VoidCallback? onTap,
+    Widget? trailing,
+  }) {
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -340,13 +351,10 @@ class LotDetailsScreen extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: valueStyle ??
-                    const TextStyle(fontWeight: FontWeight.w500),
+                style:
+                    valueStyle ?? const TextStyle(fontWeight: FontWeight.w500),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 8), trailing],
             ],
           ),
         ],
@@ -391,7 +399,6 @@ class LotDetailsScreen extends StatelessWidget {
       ],
     );
   }
-
 
   void _copyToClipboard(BuildContext context, String text) {
     Clipboard.setData(ClipboardData(text: text));
