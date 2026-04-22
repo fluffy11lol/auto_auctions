@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/l10n/app_localizations.dart';
 import '../../providers/lots_provider.dart';
 import '../widgets/connectivity_banner.dart';
+import '../widgets/filter_sheet.dart';
 import '../widgets/lot_card.dart';
 
 class LotsCatalogScreen extends StatefulWidget {
@@ -66,6 +67,16 @@ class _LotsCatalogScreenState extends State<LotsCatalogScreen> {
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
           ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const FilterSheet(),
+              );
+            },
+          ),
         ],
       ),
 
@@ -89,7 +100,6 @@ class _LotsCatalogScreenState extends State<LotsCatalogScreen> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    // Теперь тянем данные с твоего Go-сервера
                     await provider.refreshData();
                   },
                   child: ListView.builder(

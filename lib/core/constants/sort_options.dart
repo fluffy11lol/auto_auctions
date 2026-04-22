@@ -1,0 +1,1 @@
+enum LotSortOption { dateNewest, priceAsc, priceDesc, yearNewest }

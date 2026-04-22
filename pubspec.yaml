@@ -14,14 +14,11 @@ dependencies:
 
   go_router: ^14.8.1
 
-  # Состояние (как глобальные переменные, но правильно)
   provider: ^6.1.2
 
-  # Локальная БД (NoSQL-like)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
-  # Утилиты
   uuid: ^4.5.1
   intl: ^0.20.2
   cached_network_image: ^3.4.1
@@ -30,13 +27,24 @@ dependencies:
   path_provider: ^2.1.5
   share_plus: ^10.1.4
 
-  #api
   dio: ^5.4.0
   connectivity_plus: ^5.0.2
 
-  # UI
   flutter_slidable: ^3.1.1
   fl_chart: ^0.69.2
+
+  fuzzy: ^0.5.1
+
+  firebase_core: ^3.0.0
+  cloud_firestore: ^5.0.0
+  firebase_storage: ^12.0.0
+  firebase_auth: ^5.0.0
+
+  geolocator: ^13.0.0
+
+  flutter_local_notifications: ^17.2.1
+  timezone: ^0.9.4
+
 
 dev_dependencies:
   flutter_test:
@@ -47,4 +55,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  generate: true  # для локализации
+  generate: true

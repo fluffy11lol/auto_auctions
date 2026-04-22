@@ -1,17 +1,56 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/app_localizations.dart';
 import '../../data/models/lot_model.dart';
 import '../../providers/lots_provider.dart';
+import '../widgets/lot_image.dart';
 
-class LotDetailsScreen extends StatelessWidget {
+class LotDetailsScreen extends StatefulWidget {
   final String lotId;
-
   const LotDetailsScreen({super.key, required this.lotId});
+
+  @override
+  State<LotDetailsScreen> createState() => _LotDetailsScreenState();
+}
+
+class _LotDetailsScreenState extends State<LotDetailsScreen> {
+  final GlobalKey _boundaryKey = GlobalKey();
+
+  Future<void> _shareScreenshot(LotModel lot) async {
+    try {
+      RenderRepaintBoundary? boundary =
+      _boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+      if (boundary == null) return;
+
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      final tempDir = await getTemporaryDirectory();
+      final file = await File('${tempDir.path}/lot_${lot.lotNumber}.png').create();
+      await file.writeAsBytes(pngBytes);
+
+      final box = context.findRenderObject() as RenderBox?;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Check out this car: ${lot.fullName}!',
+        sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+      );
+    } catch (e) {
+      debugPrint('Error sharing screenshot: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +59,7 @@ class LotDetailsScreen extends StatelessWidget {
 
     return Consumer<LotsProvider>(
       builder: (context, provider, _) {
-        final lot = provider.getLotById(lotId);
+        final lot = provider.getLotById(widget.lotId);
 
         if (lot == null) {
           return Scaffold(
@@ -34,6 +73,11 @@ class LotDetailsScreen extends StatelessWidget {
             title: Text(lot.fullName),
             actions: [
               IconButton(
+                icon: const Icon(Icons.camera_alt_outlined),
+                tooltip: 'Share as Image',
+                onPressed: () => _shareScreenshot(lot),
+              ),
+              IconButton(
                 icon: Icon(
                   lot.isFavorite ? Icons.star : Icons.star_border,
                   color: lot.isFavorite ? Colors.amber : null,
@@ -45,153 +89,95 @@ class LotDetailsScreen extends StatelessWidget {
                 onPressed: () => context.push('/edit/${lot.id}'),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _confirmDelete(context, lot.id),
+                icon: const Icon(Icons.notifications_active_outlined),
+                onPressed: () async {
+                  await context.read<LotsProvider>().setAuctionReminder(lot.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Auction Reminder Set!'), backgroundColor: Colors.green),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () => _shareLot(context, lot),
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPhotoSection(context, lot),
-
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeaderSection(context, lot),
-
-                      const SizedBox(height: 24),
-
-                      _buildSection(
-                        context,
-                        title: l10n.t('details'),
-                        icon: Icons.directions_car,
+          body: RepaintBoundary(
+            key: _boundaryKey,
+            child: Container(
+              color: theme.scaffoldBackgroundColor,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPhotoSection(context, lot),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoRow(l10n.t('make'), lot.make),
-                          _buildInfoRow(l10n.t('model'), lot.model),
-                          _buildInfoRow(l10n.t('year'), lot.year.toString()),
-                          if (lot.vin != null)
-                            _buildInfoRow(
-                              l10n.t('vin'),
-                              lot.vin!,
-                              onTap: () => _copyToClipboard(context, lot.vin!),
-                              trailing: const Icon(Icons.copy, size: 16),
-                            ),
-                          if (lot.mileage != null)
-                            _buildInfoRow(
-                              l10n.t('mileage'),
-                              '${lot.mileage} ${l10n.t('miles')}',
-                            ),
-                          if (lot.engine != null)
-                            _buildInfoRow(l10n.t('engine'), lot.engine!),
-                          if (lot.transmission != null)
-                            _buildInfoRow(
-                              l10n.t('transmission'),
-                              lot.transmission!,
-                            ),
-                          if (lot.drivetrain != null)
-                            _buildInfoRow(
-                              l10n.t('drivetrain'),
-                              lot.drivetrain!,
-                            ),
-                          if (lot.fuelType != null)
-                            _buildInfoRow(l10n.t('fuel_type'), lot.fuelType!),
-                          if (lot.exteriorColor != null)
-                            _buildInfoRow(l10n.t('color'), lot.exteriorColor!),
+                          _buildHeaderSection(context, lot),
+                          const SizedBox(height: 24),
+                          _buildSection(
+                            context,
+                            title: l10n.t('details'),
+                            icon: Icons.directions_car,
+                            children: [
+                              _buildInfoRow(l10n.t('make'), lot.make),
+                              _buildInfoRow(l10n.t('model'), lot.model),
+                              _buildInfoRow(l10n.t('year'), lot.year.toString()),
+                              if (lot.vin != null)
+                                _buildInfoRow(
+                                  l10n.t('vin'),
+                                  lot.vin!,
+                                  onTap: () => _copyToClipboard(context, lot.vin!),
+                                  trailing: const Icon(Icons.copy, size: 16),
+                                ),
+                              if (lot.mileage != null)
+                                _buildInfoRow(l10n.t('mileage'), '${lot.mileage} ${l10n.t('miles')}'),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSection(
+                            context,
+                            title: l10n.t('auction'),
+                            icon: Icons.gavel,
+                            children: [
+                              _buildInfoRow(l10n.t('lot_number'), lot.lotNumber),
+                              _buildInfoRow(l10n.t('auction'), lot.auction),
+                              _buildInfoRow(
+                                l10n.t('current_bid'),
+                                '\$${lot.currentBid.toStringAsFixed(0)}',
+                                valueStyle: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              if (lot.saleDate != null)
+                                _buildInfoRow(l10n.t('sale_date'), _formatDate(lot.saleDate!)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSection(
+                            context,
+                            title: l10n.t('damage'),
+                            icon: Icons.warning_amber,
+                            iconColor: Colors.orange,
+                            children: [
+                              _buildInfoRow(l10n.t('primary_damage'), lot.primaryDamage),
+                              _buildInfoRow(l10n.t('has_keys'), lot.hasKeys ? '✓ Yes' : '✗ No',
+                                  valueStyle: TextStyle(color: lot.hasKeys ? Colors.green : Colors.red)),
+                              _buildInfoRow(l10n.t('runs_drives'), lot.runsDrives ? '✓ Yes' : '✗ No',
+                                  valueStyle: TextStyle(color: lot.runsDrives ? Colors.green : Colors.red)),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          _buildActionButtons(context, lot),
+                          const SizedBox(height: 32),
                         ],
                       ),
-
-                      const SizedBox(height: 16),
-
-                      _buildSection(
-                        context,
-                        title: l10n.t('auction'),
-                        icon: Icons.gavel,
-                        children: [
-                          _buildInfoRow(l10n.t('lot_number'), lot.lotNumber),
-                          _buildInfoRow(l10n.t('auction'), lot.auction),
-                          _buildInfoRow(l10n.t('location'), lot.location),
-                          _buildInfoRow(
-                            l10n.t('current_bid'),
-                            '\$${lot.currentBid.toStringAsFixed(0)}',
-                            valueStyle: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          if (lot.buyNowPrice != null)
-                            _buildInfoRow(
-                              l10n.t('buy_now'),
-                              '\$${lot.buyNowPrice!.toStringAsFixed(0)}',
-                            ),
-                          if (lot.saleDate != null)
-                            _buildInfoRow(
-                              l10n.t('sale_date'),
-                              _formatDate(lot.saleDate!),
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      _buildSection(
-                        context,
-                        title: l10n.t('damage'),
-                        icon: Icons.warning_amber,
-                        iconColor: Colors.orange,
-                        children: [
-                          _buildInfoRow(
-                            l10n.t('primary_damage'),
-                            lot.primaryDamage,
-                          ),
-                          if (lot.secondaryDamage != null)
-                            _buildInfoRow(
-                              l10n.t('secondary_damage'),
-                              lot.secondaryDamage!,
-                            ),
-                          _buildInfoRow(
-                            l10n.t('has_keys'),
-                            lot.hasKeys ? '✓ Yes' : '✗ No',
-                            valueStyle: TextStyle(
-                              color: lot.hasKeys ? Colors.green : Colors.red,
-                            ),
-                          ),
-                          _buildInfoRow(
-                            l10n.t('runs_drives'),
-                            lot.runsDrives ? '✓ Yes' : '✗ No',
-                            valueStyle: TextStyle(
-                              color: lot.runsDrives ? Colors.green : Colors.red,
-                            ),
-                          ),
-                          _buildInfoRow(l10n.t('title_type'), lot.titleType),
-                        ],
-                      ),
-
-                      if (lot.notes != null && lot.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _buildSection(
-                          context,
-                          title: 'Notes',
-                          icon: Icons.note,
-                          children: [
-                            Text(lot.notes!, style: theme.textTheme.bodyMedium),
-                          ],
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      _buildActionButtons(context, lot),
-
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -203,130 +189,46 @@ class LotDetailsScreen extends StatelessWidget {
     return Container(
       height: 220,
       width: double.infinity,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: Theme.of(context).colorScheme.surfaceVariant,
       child: lot.photos.isNotEmpty
           ? PageView.builder(
-              itemCount: lot.photos.length,
-              itemBuilder: (context, index) {
-                return Image.network(
-                  lot.photos[index],
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(context),
-                );
-              },
-            )
-          : _buildPhotoPlaceholder(context),
-    );
-  }
-
-  Widget _buildPhotoPlaceholder(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.directions_car,
-            size: 64,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No photos',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-            ),
-          ),
-        ],
-      ),
+        itemCount: lot.photos.length,
+        itemBuilder: (context, index) => LotImage(imagePath: lot.photos[index]),
+      )
+          : const Center(child: Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey)),
     );
   }
 
   Widget _buildHeaderSection(BuildContext context, LotModel lot) {
     final theme = Theme.of(context);
-
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                lot.fullName,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Lot #${lot.lotNumber} • ${lot.auction}',
-                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-              ),
+              Text(lot.fullName, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text('Lot #${lot.lotNumber} • ${lot.auction}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
             ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '\$${lot.currentBid.toStringAsFixed(0)}',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              'Current Bid',
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
-            ),
-          ],
-        ),
+        Text('\$${lot.currentBid.toStringAsFixed(0)}',
+            style: theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    Color? iconColor,
-    required List<Widget> children,
-  }) {
+  Widget _buildSection(BuildContext context, {required String title, required IconData icon, Color? iconColor, required List<Widget> children}) {
     final theme = Theme.of(context);
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: theme.cardTheme.color, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: iconColor ?? theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
+          Row(children: [Icon(icon, size: 20, color: iconColor ?? theme.colorScheme.primary), const SizedBox(width: 8), Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))]),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -334,121 +236,42 @@ class LotDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(
-    String label,
-    String value, {
-    TextStyle? valueStyle,
-    VoidCallback? onTap,
-    Widget? trailing,
-  }) {
+  Widget _buildInfoRow(String label, String value, {TextStyle? valueStyle, VoidCallback? onTap, Widget? trailing}) {
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Row(
-            children: [
-              Text(
-                value,
-                style:
-                    valueStyle ?? const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing],
-            ],
-          ),
-        ],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: const TextStyle(color: Colors.grey)),
+        Row(children: [Text(value, style: valueStyle ?? const TextStyle(fontWeight: FontWeight.w500)), if (trailing != null) ...[const SizedBox(width: 8), trailing]]),
+      ]),
     );
-
-    if (onTap != null) {
-      return InkWell(onTap: onTap, child: row);
-    }
-    return row;
+    return onTap != null ? InkWell(onTap: onTap, child: row) : row;
   }
 
   Widget _buildActionButtons(BuildContext context, LotModel lot) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => context.push('/calculator/${lot.id}'),
-            icon: const Icon(Icons.calculate),
-            label: const Text('Calculate Total Cost'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        if (lot.url != null)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _openUrl(lot.url!),
-              icon: const Icon(Icons.open_in_new),
-              label: Text('Open on ${lot.auction}'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ),
-      ],
-    );
+    return Column(children: [
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: () => context.push('/calculator/${lot.id}'), icon: const Icon(Icons.calculate), label: const Text('Calculate Total Cost'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)))),
+      const SizedBox(height: 12),
+      if (lot.url != null) SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => _openUrl(lot.url!), icon: const Icon(Icons.open_in_new), label: Text('Open on ${lot.auction}'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)))),
+    ]);
   }
 
   void _copyToClipboard(BuildContext context, String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Copied: $text')));
   }
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.'
-        '${date.month.toString().padLeft(2, '0')}.'
-        '${date.year} '
-        '${date.hour.toString().padLeft(2, '0')}:'
-        '${date.minute.toString().padLeft(2, '0')}';
-  }
+  String _formatDate(DateTime date) => '${date.day}.${date.month}.${date.year}';
 
-  void _confirmDelete(BuildContext context, String lotId) {
-    final l10n = context.l10n;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.t('delete')),
-        content: Text(l10n.t('confirm_delete')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.t('cancel')),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<LotsProvider>().deleteLot(lotId);
-              Navigator.pop(ctx);
-              context.go('/catalog');
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.t('delete')),
-          ),
-        ],
-      ),
+  void _shareLot(BuildContext context, LotModel lot) {
+    final box = context.findRenderObject() as RenderBox?;
+    Share.share(
+      'Check out this ${lot.fullName} at ${lot.auction}!\nBid: \$${lot.currentBid}',
+      sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
     );
   }
 }

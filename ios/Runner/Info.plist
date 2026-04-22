@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+    	<array>
+    		<string>remote-notification</string>
+    	</array>
+    	<key>NSUserNotificationUsageDescription</key>
+    	<string>We need to send you notifications about upcoming car auctions.</string>
+    	<key>NSCameraUsageDescription</key>
+        <string>We need access to your camera to take photos of auction cars.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>We need access to your gallery to upload car photos.</string>
 </dict>
 </plist>

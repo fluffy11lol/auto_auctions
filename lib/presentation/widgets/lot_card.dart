@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../../core/l10n/app_localizations.dart';
 import '../../data/models/lot_model.dart';
+import 'lot_image.dart';
 
 class LotCard extends StatelessWidget {
   final LotModel lot;
@@ -42,10 +42,10 @@ class LotCard extends StatelessWidget {
                       color: theme.colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      Icons.directions_car,
-                      color: theme.colorScheme.primary,
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: lot.photos.isNotEmpty
+                        ? LotImage(imagePath: lot.photos[0])
+                        : Icon(Icons.directions_car, color: theme.colorScheme.primary),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -54,16 +54,11 @@ class LotCard extends StatelessWidget {
                       children: [
                         Text(
                           lot.fullName,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 4),
                         Text(
                           '${l10n.t('lot_number')}${lot.lotNumber}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                         ),
                       ],
                     ),
@@ -74,33 +69,22 @@ class LotCard extends StatelessWidget {
                       color: lot.isFavorite ? Colors.amber : Colors.grey,
                     ),
                     onPressed: onFavoriteToggle,
-                    tooltip: l10n.t('favorites'),
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
 
               Row(
                 children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
                     lot.location,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                   ),
-                  const SizedBox(width: 16),
+                  const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: _getAuctionColor(lot.auction).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -116,7 +100,6 @@ class LotCard extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
@@ -127,12 +110,7 @@ class LotCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          l10n.t('current_bid'),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
+                        Text(l10n.t('current_bid'), style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
                         const SizedBox(height: 2),
                         Text(
                           '\$${_formatNumber(lot.currentBid)}',
@@ -149,26 +127,15 @@ class LotCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            l10n.t('mileage'),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
-                            ),
-                          ),
+                          Text(l10n.t('mileage'), style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.speed,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
+                              const Icon(Icons.speed, size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
                                 '${_formatNumber(lot.mileage!.toDouble())} ${l10n.t('miles')}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -176,30 +143,24 @@ class LotCard extends StatelessWidget {
                       ),
                     ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: lot.runsDrives
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.red.withOpacity(0.1),
+                      color: lot.runsDrives ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           lot.runsDrives ? Icons.check_circle : Icons.cancel,
-                          size: 16,
+                          size: 14,
                           color: lot.runsDrives ? Colors.green : Colors.red,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           lot.runsDrives ? l10n.t('runs') : l10n.t('not_run'),
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
                             color: lot.runsDrives ? Colors.green : Colors.red,
                           ),
                         ),
@@ -208,14 +169,10 @@ class LotCard extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
 
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -223,24 +180,17 @@ class LotCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      size: 16,
-                      color: Colors.orange,
-                    ),
+                    const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange),
                     const SizedBox(width: 6),
                     Text(
                       lot.primaryDamage,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.orange,
-                      ),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.orange),
                     ),
                   ],
                 ),
               ),
 
+              // --- КНОПКА КАЛЬКУЛЯТОРА ---
               if (onCalculator != null) ...[
                 const SizedBox(height: 12),
                 SizedBox(
@@ -261,23 +211,17 @@ class LotCard extends StatelessWidget {
 
   Color _getAuctionColor(String auction) {
     switch (auction.toLowerCase()) {
-      case 'copart':
-        return const Color(0xFF2563EB);
-      case 'iaai':
-        return const Color(0xFF059669);
-      case 'manheim':
-        return const Color(0xFF7C3AED);
-      default:
-        return Colors.grey;
+      case 'copart': return const Color(0xFF2563EB);
+      case 'iaai': return const Color(0xFF059669);
+      case 'manheim': return const Color(0xFF7C3AED);
+      default: return Colors.grey;
     }
   }
 
   String _formatNumber(double number) {
-    return number
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    return number.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
-        );
+    );
   }
 }

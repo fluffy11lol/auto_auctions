@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -9,7 +11,7 @@ import '../../data/models/lot_model.dart';
 import '../../providers/lots_provider.dart';
 
 class AddEditLotScreen extends StatefulWidget {
-  final String? lotId; // if null => adding new lot, else editing existing
+  final String? lotId;
 
   const AddEditLotScreen({super.key, this.lotId});
 
@@ -20,6 +22,9 @@ class AddEditLotScreen extends StatefulWidget {
 class _AddEditLotScreenState extends State<AddEditLotScreen> {
   final _formKey = GlobalKey<FormState>();
   final _uuid = const Uuid();
+
+  final ImagePicker _picker = ImagePicker();
+  List<File> _selectedImages = [];
 
   late TextEditingController _lotNumberController;
   late TextEditingController _makeController;
@@ -49,11 +54,10 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
   @override
   void initState() {
     super.initState();
-
     _lotNumberController = TextEditingController();
     _makeController = TextEditingController();
     _modelController = TextEditingController();
-    _yearController = TextEditingController(text: '2022');
+    _yearController = TextEditingController(text: '2024');
     _vinController = TextEditingController();
     _mileageController = TextEditingController();
     _engineController = TextEditingController();
@@ -63,9 +67,7 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
     _notesController = TextEditingController();
 
     if (_isEditing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadLotData();
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadLotData());
     }
   }
 
@@ -84,7 +86,6 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
         _buyNowController.text = lot.buyNowPrice?.toStringAsFixed(0) ?? '';
         _cityController.text = lot.city;
         _notesController.text = lot.notes ?? '';
-
         _selectedAuction = lot.auction;
         _selectedState = lot.state;
         _selectedDamage = lot.primaryDamage;
@@ -92,420 +93,208 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
         _selectedTransmission = lot.transmission ?? 'Automatic';
         _selectedDrivetrain = lot.drivetrain ?? 'AWD';
         _selectedFuelType = lot.fuelType ?? 'Gasoline';
-
         _hasKeys = lot.hasKeys;
         _runsDrives = lot.runsDrives;
       });
     }
   }
 
-  @override
-  void dispose() {
-    _lotNumberController.dispose();
-    _makeController.dispose();
-    _modelController.dispose();
-    _yearController.dispose();
-    _vinController.dispose();
-    _mileageController.dispose();
-    _engineController.dispose();
-    _currentBidController.dispose();
-    _buyNowController.dispose();
-    _cityController.dispose();
-    _notesController.dispose();
-    super.dispose();
+  Future<void> _pickImage() async {
+    try {
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return;
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        imageQuality: 30,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(File(image.path));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera not available on this device/simulator'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? l10n.t('edit_lot') : l10n.t('add_lot')),
-        actions: [
-          TextButton(
-            onPressed: _saveLot,
-            child: Text(
-              l10n.t('save'),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.check), onPressed: _saveLot)],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSectionTitle('Auction Info'),
-            const SizedBox(height: 8),
+            _buildSectionTitle('Vehicle Photos'),
+            const SizedBox(height: 12),
+            _buildPhotoPicker(),
+            const SizedBox(height: 24),
 
+            _buildSectionTitle('Auction Info'),
             Row(
               children: [
-                Expanded(
-                  child: _buildDropdown(
-                    label: l10n.t('auction'),
-                    value: _selectedAuction,
-                    items: AuctionData.auctions,
-                    onChanged: (v) => setState(() => _selectedAuction = v!),
-                  ),
-                ),
+                Expanded(child: _buildDropdown(label: 'Auction', value: _selectedAuction, items: AuctionData.auctions, onChanged: (v) => setState(() => _selectedAuction = v!))),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _lotNumberController,
-                    label: l10n.t('lot_number'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
-                ),
+                Expanded(child: _buildTextField(controller: _lotNumberController, label: 'Lot #', keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null)),
               ],
             ),
-
             const SizedBox(height: 24),
 
             _buildSectionTitle('Vehicle Info'),
-            const SizedBox(height: 8),
-
-            Autocomplete<String>(
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return AuctionData.popularMakes;
-                }
-                return AuctionData.popularMakes.where(
-                  (make) => make.toLowerCase().contains(
-                    textEditingValue.text.toLowerCase(),
-                  ),
-                );
-              },
-              onSelected: (selection) {
-                _makeController.text = selection;
-              },
-              fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                if (_makeController.text.isNotEmpty &&
-                    controller.text.isEmpty) {
-                  controller.text = _makeController.text;
-                }
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(labelText: l10n.t('make')),
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
-                  onChanged: (v) => _makeController.text = v,
-                );
-              },
-            ),
-
+            _buildTextField(controller: _makeController, label: 'Make', validator: (v) => v!.isEmpty ? 'Required' : null),
             const SizedBox(height: 12),
-
-            _buildTextField(
-              controller: _modelController,
-              label: l10n.t('model'),
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-
+            _buildTextField(controller: _modelController, label: 'Model', validator: (v) => v!.isEmpty ? 'Required' : null),
             const SizedBox(height: 12),
-
             Row(
               children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _yearController,
-                    label: l10n.t('year'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v!.isEmpty) return 'Required';
-                      final year = int.tryParse(v);
-                      if (year == null || year < 1900 || year > 2030) {
-                        return 'Invalid year';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
+                Expanded(child: _buildTextField(controller: _yearController, label: 'Year', keyboardType: TextInputType.number)),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _mileageController,
-                    label: l10n.t('mileage'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
+                Expanded(child: _buildTextField(controller: _mileageController, label: 'Mileage', keyboardType: TextInputType.number)),
               ],
             ),
-
-            const SizedBox(height: 12),
-
-            _buildTextField(
-              controller: _vinController,
-              label: l10n.t('vin'),
-              textCapitalization: TextCapitalization.characters,
-            ),
-
-            const SizedBox(height: 12),
-
-            _buildTextField(
-              controller: _engineController,
-              label: l10n.t('engine'),
-              hint: 'e.g. 3.0L I6 Turbo',
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDropdown(
-                    label: l10n.t('transmission'),
-                    value: _selectedTransmission,
-                    items: AuctionData.transmissionTypes,
-                    onChanged: (v) =>
-                        setState(() => _selectedTransmission = v!),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildDropdown(
-                    label: l10n.t('drivetrain'),
-                    value: _selectedDrivetrain,
-                    items: AuctionData.drivetrainTypes,
-                    onChanged: (v) => setState(() => _selectedDrivetrain = v!),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            _buildDropdown(
-              label: l10n.t('fuel_type'),
-              value: _selectedFuelType,
-              items: AuctionData.fuelTypes,
-              onChanged: (v) => setState(() => _selectedFuelType = v!),
-            ),
-
             const SizedBox(height: 24),
 
             _buildSectionTitle('Price & Location'),
-            const SizedBox(height: 8),
-
             Row(
               children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _currentBidController,
-                    label: l10n.t('current_bid'),
-                    keyboardType: TextInputType.number,
-                    prefix: '\$ ',
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
-                ),
+                Expanded(child: _buildTextField(controller: _currentBidController, label: 'Current Bid', prefix: '\$ ', keyboardType: TextInputType.number, validator: (v) => (v == null || double.tryParse(v) == null) ? 'Invalid price' : null)),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _buyNowController,
-                    label: l10n.t('buy_now'),
-                    keyboardType: TextInputType.number,
-                    prefix: '\$ ',
-                  ),
-                ),
+                Expanded(child: _buildTextField(controller: _buyNowController, label: 'Buy Now', prefix: '\$ ', keyboardType: TextInputType.number)),
               ],
             ),
-
             const SizedBox(height: 12),
-
             Row(
               children: [
-                Expanded(
-                  flex: 2,
-                  child: _buildTextField(
-                    controller: _cityController,
-                    label: 'City',
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
-                ),
+                Expanded(flex: 2, child: _buildTextField(controller: _cityController, label: 'City', validator: (v) => v!.isEmpty ? 'Required' : null)),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildDropdown(
-                    label: 'State',
-                    value: _selectedState,
-                    items: AuctionData.usStates.keys.toList(),
-                    onChanged: (v) => setState(() => _selectedState = v!),
-                  ),
-                ),
+                Expanded(child: _buildDropdown(label: 'State', value: _selectedState, items: AuctionData.usStates.keys.toList(), onChanged: (v) => setState(() => _selectedState = v!))),
               ],
             ),
-
             const SizedBox(height: 24),
 
             _buildSectionTitle('Damage & Condition'),
-            const SizedBox(height: 8),
-
-            _buildDropdown(
-              label: l10n.t('primary_damage'),
-              value: _selectedDamage,
-              items: AuctionData.damageTypes,
-              onChanged: (v) => setState(() => _selectedDamage = v!),
-            ),
-
+            _buildDropdown(label: 'Primary Damage', value: _selectedDamage, items: AuctionData.damageTypes, onChanged: (v) => setState(() => _selectedDamage = v!)),
             const SizedBox(height: 12),
-
-            _buildDropdown(
-              label: l10n.t('title_type'),
-              value: _selectedTitleType,
-              items: AuctionData.titleTypes,
-              onChanged: (v) => setState(() => _selectedTitleType = v!),
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    title: Text(l10n.t('has_keys')),
-                    value: _hasKeys,
-                    onChanged: (v) => setState(() => _hasKeys = v!),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ),
-                Expanded(
-                  child: CheckboxListTile(
-                    title: Text(l10n.t('runs_drives')),
-                    value: _runsDrives,
-                    onChanged: (v) => setState(() => _runsDrives = v!),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ),
-              ],
-            ),
-
+            _buildDropdown(label: 'Title Type', value: _selectedTitleType, items: AuctionData.titleTypes, onChanged: (v) => setState(() => _selectedTitleType = v!)),
+            CheckboxListTile(title: const Text('Has Keys'), value: _hasKeys, onChanged: (v) => setState(() => _hasKeys = v!)),
+            CheckboxListTile(title: const Text('Runs & Drives'), value: _runsDrives, onChanged: (v) => setState(() => _runsDrives = v!)),
             const SizedBox(height: 24),
 
             _buildSectionTitle('Notes'),
-            const SizedBox(height: 8),
-
-            _buildTextField(
-              controller: _notesController,
-              label: 'Your notes',
-              maxLines: 4,
-            ),
-
+            _buildTextField(controller: _notesController, label: 'Notes', maxLines: 3),
             const SizedBox(height: 32),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveLot,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: Text(
-                  _isEditing ? 'Update Lot' : 'Add Lot',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              onPressed: _saveLot,
+              child: Text(_isEditing ? 'Update' : 'Save'),
             ),
-
-            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: Theme.of(
-        context,
-      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    String? hint,
-    String? prefix,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-    TextCapitalization textCapitalization = TextCapitalization.none,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixText: prefix,
+  Widget _buildPhotoPicker() {
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedImages.length + 1,
+        itemBuilder: (context, index) {
+          if (index == _selectedImages.length) {
+            return GestureDetector(onTap: _pickImage, child: Container(width: 100, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.add_a_photo)));
+          }
+          return Container(width: 100, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), image: DecorationImage(image: FileImage(_selectedImages[index]), fit: BoxFit.cover)));
+        },
       ),
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      maxLines: maxLines,
-      validator: validator,
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(labelText: label),
-      items: items.map((item) {
-        return DropdownMenuItem(value: item, child: Text(item));
-      }).toList(),
-      onChanged: onChanged,
-    );
-  }
-
-  void _saveLot() {
+  void _saveLot() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final now = DateTime.now();
-    final provider = context.read<LotsProvider>();
+    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
 
+    final double bid = double.tryParse(_currentBidController.text) ?? 0.0;
+    final double? buyNow = double.tryParse(_buyNowController.text);
+    final int year = int.tryParse(_yearController.text) ?? 2024;
+    final int? mileage = int.tryParse(_mileageController.text);
+
+    final provider = context.read<LotsProvider>();
     final lot = LotModel(
-      id: _isEditing ? widget.lotId! : _uuid.v4(),
+      id: _isEditing ? widget.lotId! : '',
       lotNumber: _lotNumberController.text,
       auction: _selectedAuction,
       make: _makeController.text,
       model: _modelController.text,
-      year: int.parse(_yearController.text),
-      vin: _vinController.text.isEmpty ? null : _vinController.text,
-      mileage: int.tryParse(_mileageController.text),
-      engine: _engineController.text.isEmpty ? null : _engineController.text,
-      transmission: _selectedTransmission,
-      drivetrain: _selectedDrivetrain,
-      fuelType: _selectedFuelType,
-      currentBid: double.parse(_currentBidController.text),
-      buyNowPrice: double.tryParse(_buyNowController.text),
+      year: year,
+      currentBid: bid,
+      buyNowPrice: buyNow,
+      mileage: mileage,
       state: _selectedState,
       city: _cityController.text,
       primaryDamage: _selectedDamage,
       titleType: _selectedTitleType,
       hasKeys: _hasKeys,
       runsDrives: _runsDrives,
-      notes: _notesController.text.isEmpty ? null : _notesController.text,
+      notes: _notesController.text,
       photos: [],
-      createdAt: _isEditing
-          ? provider.getLotById(widget.lotId!)?.createdAt ?? now
-          : now,
-      updatedAt: now,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     if (_isEditing) {
-      provider.updateLot(lot);
+      await provider.updateLot(lot);
     } else {
-      provider.addLot(lot);
+      await provider.addLot(lot, localFiles: _selectedImages);
     }
 
-    context.go('/catalog');
+    if (mounted) {
+      Navigator.pop(context);
+      context.go('/catalog');
+    }
+  }
+
+  Widget _buildSectionTitle(String title) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)));
+  Widget _buildTextField({required TextEditingController controller, required String label, String? prefix, int maxLines = 1, TextInputType? keyboardType, String? Function(String?)? validator}) {
+    return TextFormField(controller: controller, decoration: InputDecoration(labelText: label, prefixText: prefix, border: const OutlineInputBorder()), keyboardType: keyboardType, maxLines: maxLines, validator: validator);
+  }
+  Widget _buildDropdown({required String label, required String value, required List<String> items, required void Function(String?) onChanged}) {
+    return DropdownButtonFormField<String>(value: value, decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()), items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(), onChanged: onChanged);
   }
 }
