@@ -1,12 +1,14 @@
 import 'package:auto_auctions/core/l10n/app_localizations.dart';
 import 'package:auto_auctions/core/theme/app_theme.dart';
 import 'package:auto_auctions/presentation/screens/add_edit_lot_screen.dart';
+import 'package:auto_auctions/presentation/screens/auth_screen.dart';
 import 'package:auto_auctions/presentation/screens/calculator_screen.dart';
 import 'package:auto_auctions/presentation/screens/lot_details_screen.dart';
 import 'package:auto_auctions/presentation/screens/lots_catalog_screen.dart';
 import 'package:auto_auctions/presentation/screens/settings_screen.dart';
 import 'package:auto_auctions/presentation/screens/splash_screen.dart';
 import 'package:auto_auctions/providers/settings_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -42,6 +44,17 @@ class AutoAuctionsApp extends StatelessWidget {
   static final _router = GoRouter(
     initialLocation: '/',
     routes: [
+    GoRoute(
+    path: '/',
+    builder: (context, state) => StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const SplashScreen();
+        if (snapshot.hasData) return const LotsCatalogScreen();
+        return const AuthScreen();
+      },
+    ),
+  ),
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/catalog',

@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -6,16 +7,22 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/network/network_info.dart';
 import 'core/services/currency_service.dart';
+import 'core/services/notification_service.dart';
 import 'data/models/lot_model.dart';
 import 'data/models/settings_model.dart';
 import 'data/repositories/lots_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'firebase_options.dart';
 import 'providers/lots_provider.dart';
 import 'providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   Hive.registerAdapter(LotModelAdapter());
   Hive.registerAdapter(SettingsModelAdapter());
@@ -27,6 +34,11 @@ void main() async {
   final currencyService = CurrencyService();
   final settingsRepository = SettingsRepository();
   final lotsRepository = LotsRepository();
+  final notificationService = NotificationService();
+  await notificationService.init();
+
+
+  final initialConnectivity = await Connectivity().checkConnectivity();
 
   runApp(
     MultiProvider(
@@ -37,7 +49,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LotsProvider(lotsRepository)),
         StreamProvider<ConnectivityResult>(
           create: (_) => Connectivity().onConnectivityChanged,
-          initialData: ConnectivityResult.wifi,
+          initialData: initialConnectivity,
           lazy: false,
         ),
       ],

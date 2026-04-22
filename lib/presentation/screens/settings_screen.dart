@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/l10n/app_localizations.dart';
@@ -19,6 +21,7 @@ class SettingsScreen extends StatelessWidget {
           return ListView(
             children: [
               const SizedBox(height: 16),
+
               _buildSectionTitle(context, l10n.t('theme')),
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -43,6 +46,7 @@ class SettingsScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 16),
+
               _buildSectionTitle(context, l10n.t('currency')),
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -50,51 +54,81 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     ListTile(
                       title: const Text('USD → RUB'),
-                      trailing: Text(
-                        '₽ ${settings.usdRate.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      trailing: Text('₽ ${settings.usdRate.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                     ListTile(
                       title: const Text('EUR → RUB'),
-                      trailing: Text(
-                        '₽ ${settings.eurRate.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      trailing: Text('₽ ${settings.eurRate.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: settings.isUpdatingRates
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.sync),
                       title: const Text('Sync Exchange Rates'),
-                      onTap: settings.isUpdatingRates
-                          ? null
-                          : () => settings.updateRates(),
+                      onTap: settings.isUpdatingRates ? null : () => settings.updateRates(),
                     ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 16),
+
+              _buildSectionTitle(context, 'Account'),
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person),
+                      ),
+                      title: Text(FirebaseAuth.instance.currentUser?.email ?? 'User'),
+                      subtitle: const Text('Logged in via Firebase'),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                      onTap: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) {
+                          context.go('/');
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
               _buildSectionTitle(context, l10n.t('data')),
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: Text(
-                    l10n.t('clear_data'),
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  onTap: () => _confirmClear(context, l10n),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+                      title: const Text('Seed Firebase Database'),
+                      subtitle: const Text('Add mock cars to Cloud Firestore'),
+                      onTap: () async {
+                        await context.read<LotsProvider>().seedDatabase();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Firebase Database Seeded!')),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const Icon(Icons.delete_forever, color: Colors.red),
+                      title: Text(l10n.t('clear_data'), style: const TextStyle(color: Colors.red)),
+                      onTap: () => _confirmClear(context, l10n),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 32),
             ],
           );
+
         },
       ),
     );
@@ -103,14 +137,7 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
+      child: Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
     );
   }
 
@@ -122,16 +149,13 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.t('delete_confirm')),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.t('cancel')),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.t('cancel'))),
           TextButton(
             onPressed: () {
               context.read<LotsProvider>().clearAll();
               Navigator.pop(ctx);
             },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: const Text('Clear All', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
